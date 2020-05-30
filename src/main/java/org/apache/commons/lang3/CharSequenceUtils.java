@@ -209,6 +209,16 @@ public class CharSequenceUtils {
         return NOT_FOUND;
     }
 
+    //lastIndexOf
+
+    private static final int MOD = (1 << 20);
+
+    private static final int MOD_MINUS_1 = MOD - 1;
+
+    private static final int MOD_INVERSE = 870095;
+
+    private static final int RADIX = 47;
+
     /**
      * Used by the lastIndexOf(CharSequence methods) as a green implementation of lastIndexOf
      *
@@ -218,16 +228,75 @@ public class CharSequenceUtils {
      * @return the index where the search sequence was found
      */
     static int lastIndexOf(final CharSequence cs, final CharSequence searchChar, final int start) {
-        return cs.toString().lastIndexOf(searchChar.toString(), start);
-//        if (cs instanceof String && searchChar instanceof String) {
-//            // TODO: Do we assume searchChar is usually relatively small;
-//            //       If so then calling toString() on it is better than reverting to
-//            //       the green implementation in the else block
-//            return ((String) cs).lastIndexOf((String) searchChar, start);
-//        } else {
-//            // TODO: Implement rather than convert to String
-//            return cs.toString().lastIndexOf(searchChar.toString(), start);
-//        }
+        if (cs instanceof String && searchChar instanceof String) {
+            return ((String) cs).lastIndexOf((String) searchChar, start);
+        }
+
+        int len2 = searchChar.length();
+
+        if (start < len2 || len2 <= 0) {
+            return -1;
+        }
+
+        int seg = 47;
+
+        long hash2 = 0;
+        for (int i = 0; i < len2; i++) {
+            hash2 *= seg;
+            hash2 += searchChar.charAt(i);
+            hash2 &= MOD_MINUS_1;
+        }
+
+        long ti = power(seg, len2 - 1);
+
+        long hash1 = 0;
+        for (int i = start - len2; i < start; i++) {
+            hash1 *= seg;
+            hash1 += cs.charAt(i);
+            hash1 &= MOD_MINUS_1;
+        }
+        if (hash1 == hash2) {
+            if (check(cs, searchChar, len2, start - len2)) {
+                return start - len2;
+            }
+        }
+        for (int i = start - len2 - 1; i >= 0; i--) {
+            hash1 -= cs.charAt(i + len2);
+            hash1 *= MOD_INVERSE;
+            hash1 += cs.charAt(i) * ti;
+            if (hash1 < 0) {
+                hash1 += MOD;
+            }
+            hash1 &= MOD_MINUS_1;
+            if (hash1 == hash2) {
+                if (check(cs, searchChar, len2, i)) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static boolean check(final CharSequence cs, final CharSequence searchChar, int len2, int start1) {
+        for (int i = 0; i < len2; i++) {
+            if (cs.charAt(start1 + i) != searchChar.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static long power(long seg, int time) {
+        long res = 1L;
+        long ti = seg;
+        while (time != 0) {
+            if ((time & 1) != 0) {
+                res = (res * ti) & MOD_MINUS_1;
+            }
+            ti = (ti * ti) & MOD_MINUS_1;
+            time >>= 1;
+        }
+        return res;
     }
 
     /**
