@@ -351,14 +351,9 @@ public class CharSequenceUtils {
         }
 
         while (tmpLen-- > 0) {
-            final char c1 = cs.charAt(index1++);
-            final char c2 = substring.charAt(index2++);
-
-            if (c1 == c2) {
-                continue;
+            if (cs.charAt(index1++) != substring.charAt(index2++)) {
+                return false;
             }
-
-            return false;
         }
 
         return true;
