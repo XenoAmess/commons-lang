@@ -16,6 +16,7 @@
  */
 package org.apache.commons.lang3;
 
+import static java.nio.CharBuffer.wrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -27,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
@@ -346,5 +348,32 @@ public class CharUtilsTest {
     public void testToUnicodeEscaped_Character() {
         assertNull(CharUtils.unicodeEscaped(null));
         assertEquals("\\u0041", CharUtils.unicodeEscaped(CHARACTER_A));
+    }
+
+    @Test
+    public void testNewLastIndexOf() {
+        Random random = new Random();
+        StringBuilder seg = new StringBuilder();
+        while (seg.length() <= 16) {
+            seg.append(random.nextInt());
+        }
+        String original = seg.toString();
+        for (int i = 0; i < 1000; i++) {
+            if (random.nextDouble() < 0.5) {
+                original += random.nextInt();
+            } else {
+                original = "" + random.nextInt() + original;
+            }
+            assertEquals(
+                    CharSequenceUtils.lastIndexOf(wrap(original), seg, seg.length()),
+                    wrap(original).toString().lastIndexOf(seg.toString(), seg.length()),
+                    "testNewLastIndexOf fails! original : " + original + " seg : " + seg
+            );
+            assertEquals(
+                    CharSequenceUtils.lastIndexOf(wrap(original), seg, 0),
+                    wrap(original).toString().lastIndexOf(seg.toString(), 0),
+                    "testNewLastIndexOf fails! original : " + original + " seg : " + seg
+            );
+        }
     }
 }
