@@ -367,13 +367,33 @@ public class CharUtilsTest {
             assertEquals(
                     CharSequenceUtils.lastIndexOf(wrap(original), seg, seg.length()),
                     wrap(original).toString().lastIndexOf(seg.toString(), seg.length()),
-                    "testNewLastIndexOf fails! original : " + original + " seg : " + seg
+                    "testNewLastIndexOf fails! original : " + original + " seg : " + seg + " start : " + seg.length()
             );
             assertEquals(
                     CharSequenceUtils.lastIndexOf(wrap(original), seg, 0),
                     wrap(original).toString().lastIndexOf(seg.toString(), 0),
-                    "testNewLastIndexOf fails! original : " + original + " seg : " + seg
+                    "testNewLastIndexOf fails! original : " + original + " seg : " + seg + " start : " + 0
             );
         }
+
+        testNewLastIndexOfSingle("", "");
+        testNewLastIndexOfSingle("1", "");
+        testNewLastIndexOfSingle("", "1");
+        testNewLastIndexOfSingle("1", "1");
+        testNewLastIndexOfSingle("11", "1");
+        testNewLastIndexOfSingle("1", "11");
+    }
+
+    private void testNewLastIndexOfSingle(String a, String b) {
+        testNewLastIndexOfSingle(a,b,0);
+        testNewLastIndexOfSingle(a,b,b.length());
+    }
+
+    private void testNewLastIndexOfSingle(String a, String b, int start) {
+        assertEquals(
+                CharSequenceUtils.lastIndexOf(wrap(a), b, start),
+                a.lastIndexOf(b, start),
+                "testNewLastIndexOf fails! original : " + a + " seg : " + b + " start : " + start
+        );
     }
 }
