@@ -218,7 +218,7 @@ public class CharSequenceUtils {
 
     //lastIndexOf
 
-    private static final int HASH_LIMIT = 16;
+    static final int HASH_LIMIT = 16;
 
     private static final int MOD = (1 << 20);
 
@@ -236,25 +236,32 @@ public class CharSequenceUtils {
      * @param start the start index
      * @return the index where the search sequence was found
      */
-    static int lastIndexOf(final CharSequence cs, final CharSequence searchChar, final int start) {
+    static int lastIndexOf(final CharSequence cs, final CharSequence searchChar, int start) {
         if (searchChar instanceof String) {
             if (cs instanceof String) {
                 return ((String) cs).lastIndexOf((String) searchChar, start);
-            } else if(cs instanceof StringBuilder) {
+            } else if (cs instanceof StringBuilder) {
                 return ((StringBuilder) cs).lastIndexOf((String) searchChar, start);
-            } else if(cs instanceof StringBuffer) {
+            } else if (cs instanceof StringBuffer) {
                 return ((StringBuffer) cs).lastIndexOf((String) searchChar, start);
             }
         }
-
+        int len1 = cs.length();
         int len2 = searchChar.length();
 
-        if (start < len2 || len2 <= 0) {
+        if (start > len1) {
+            start = len1;
+        }
+
+        if (start < 0 || len2 < 0 || len2 > len1) {
             return -1;
         }
 
-        if (len2 <= HASH_LIMIT) {
+        if (len2 == 0) {
+            return start;
+        }
 
+        if (len2 <= HASH_LIMIT) {
             if (cs instanceof String) {
                 return ((String) cs).lastIndexOf(searchChar.toString(), start);
             } else if (cs instanceof StringBuilder) {
@@ -264,41 +271,76 @@ public class CharSequenceUtils {
             } else {
                 return cs.toString().lastIndexOf(searchChar.toString(), start);
             }
+        }
+        return lastIndexOfHashInner(cs, searchChar, start, len1, len2);
+    }
 
-        } else {
+    static int lastIndexOfHash(final CharSequence cs, final CharSequence searchChar, int start) {
+        int len1 = cs.length();
+        int len2 = searchChar.length();
 
-            long hash2 = 0;
-            for (int i = 0; i < len2; i++) {
-                hash2 *= RADIX;
-                hash2 += searchChar.charAt(i);
-                hash2 &= MOD_MINUS_1;
-            }
+        if (start > len1) {
+            start = len1;
+        }
 
-            long ti = power(RADIX, len2 - 1);
+        if (start < 0 || len2 < 0 || len2 > len1) {
+            return -1;
+        }
 
-            long hash1 = 0;
-            for (int i = start - len2; i < start; i++) {
-                hash1 *= RADIX;
+        if (len2 == 0) {
+            return start;
+        }
+        return lastIndexOfHashInner(cs, searchChar, start, len1, len2);
+    }
+
+    static int lastIndexOfHashInner(
+            final CharSequence cs,
+            final CharSequence searchChar,
+            int start,
+            int len1,
+            int len2
+    ) {
+
+        long hash2 = 0;
+        for (int i = 0; i < len2; i++) {
+            hash2 *= RADIX;
+            hash2 += searchChar.charAt(i);
+            hash2 &= MOD_MINUS_1;
+        }
+
+        long ti = power(len2 - 1);
+
+        long hash1 = 0;
+
+        if (start + len2 > len1) {
+            start = len1 - len2;
+        }
+
+        for (int i = start; i < start + len2; i++) {
+            hash1 *= RADIX;
+            try {
                 hash1 += cs.charAt(i);
-                hash1 &= MOD_MINUS_1;
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+            hash1 &= MOD_MINUS_1;
+        }
+        if (hash1 == hash2) {
+            if (check(cs, searchChar, len2, start)) {
+                return start;
+            }
+        }
+        for (int i = start - 1; i >= 0; i--) {
+            hash1 -= cs.charAt(i + len2);
+            hash1 *= MOD_INVERSE;
+            hash1 += cs.charAt(i) * ti;
+            if (hash1 < 0) {
+                hash1 += MOD;
+            }
+            hash1 &= MOD_MINUS_1;
             if (hash1 == hash2) {
-                if (check(cs, searchChar, len2, start - len2)) {
-                    return start - len2;
-                }
-            }
-            for (int i = start - len2 - 1; i >= 0; i--) {
-                hash1 -= cs.charAt(i + len2);
-                hash1 *= MOD_INVERSE;
-                hash1 += cs.charAt(i) * ti;
-                if (hash1 < 0) {
-                    hash1 += MOD;
-                }
-                hash1 &= MOD_MINUS_1;
-                if (hash1 == hash2) {
-                    if (check(cs, searchChar, len2, i)) {
-                        return i;
-                    }
+                if (check(cs, searchChar, len2, i)) {
+                    return i;
                 }
             }
         }
@@ -315,9 +357,9 @@ public class CharSequenceUtils {
         return true;
     }
 
-    private static long power(long seg, int time) {
+    private static long power(int time) {
         long res = 1L;
-        long ti = seg;
+        long ti = RADIX;
         while (time != 0) {
             if ((time & 1) != 0) {
                 res = (res * ti) & MOD_MINUS_1;
