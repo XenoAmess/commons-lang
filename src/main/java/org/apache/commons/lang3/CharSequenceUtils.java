@@ -209,6 +209,16 @@ public class CharSequenceUtils {
         return NOT_FOUND;
     }
 
+    //lastIndexOf
+
+    private static final int MOD = (1 << 20);
+
+    private static final int MOD_MINUS_1 = MOD - 1;
+
+    private static final int MOD_INVERSE = 870095;
+
+    private static final int RADIX = 47;
+
     /**
      * Used by the lastIndexOf(CharSequence methods) as a green implementation of lastIndexOf
      *
@@ -218,16 +228,97 @@ public class CharSequenceUtils {
      * @return the index where the search sequence was found
      */
     static int lastIndexOf(final CharSequence cs, final CharSequence searchChar, final int start) {
-        return cs.toString().lastIndexOf(searchChar.toString(), start);
-//        if (cs instanceof String && searchChar instanceof String) {
-//            // TODO: Do we assume searchChar is usually relatively small;
-//            //       If so then calling toString() on it is better than reverting to
-//            //       the green implementation in the else block
-//            return ((String) cs).lastIndexOf((String) searchChar, start);
-//        } else {
-//            // TODO: Implement rather than convert to String
-//            return cs.toString().lastIndexOf(searchChar.toString(), start);
-//        }
+        if (searchChar instanceof String) {
+            if (cs instanceof String) {
+                return ((String) cs).lastIndexOf((String) searchChar, start);
+            } else if(cs instanceof StringBuilder) {
+                return ((StringBuilder) cs).lastIndexOf((String) searchChar, start);
+            } else if(cs instanceof StringBuffer) {
+                return ((StringBuffer) cs).lastIndexOf((String) searchChar, start);
+            }
+        }
+
+        int len2 = searchChar.length();
+
+        if (start < len2 || len2 <= 0) {
+            return -1;
+        }
+
+        if (len2 <= 16) {
+
+            if (cs instanceof String) {
+                return ((String) cs).lastIndexOf(searchChar.toString(), start);
+            } else if (cs instanceof StringBuilder) {
+                return ((StringBuilder) cs).lastIndexOf(searchChar.toString(), start);
+            } else if (cs instanceof StringBuffer) {
+                return ((StringBuffer) cs).lastIndexOf(searchChar.toString(), start);
+            } else {
+                return cs.toString().lastIndexOf(searchChar.toString(), start);
+            }
+
+        } else {
+
+            int seg = 47;
+
+            long hash2 = 0;
+            for (int i = 0; i < len2; i++) {
+                hash2 *= seg;
+                hash2 += searchChar.charAt(i);
+                hash2 &= MOD_MINUS_1;
+            }
+
+            long ti = power(seg, len2 - 1);
+
+            long hash1 = 0;
+            for (int i = start - len2; i < start; i++) {
+                hash1 *= seg;
+                hash1 += cs.charAt(i);
+                hash1 &= MOD_MINUS_1;
+            }
+            if (hash1 == hash2) {
+                if (check(cs, searchChar, len2, start - len2)) {
+                    return start - len2;
+                }
+            }
+            for (int i = start - len2 - 1; i >= 0; i--) {
+                hash1 -= cs.charAt(i + len2);
+                hash1 *= MOD_INVERSE;
+                hash1 += cs.charAt(i) * ti;
+                if (hash1 < 0) {
+                    hash1 += MOD;
+                }
+                hash1 &= MOD_MINUS_1;
+                if (hash1 == hash2) {
+                    if (check(cs, searchChar, len2, i)) {
+                        return i;
+                    }
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    private static boolean check(final CharSequence cs, final CharSequence searchChar, int len2, int start1) {
+        for (int i = 0; i < len2; i++) {
+            if (cs.charAt(start1 + i) != searchChar.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static long power(long seg, int time) {
+        long res = 1L;
+        long ti = seg;
+        while (time != 0) {
+            if ((time & 1) != 0) {
+                res = (res * ti) & MOD_MINUS_1;
+            }
+            ti = (ti * ti) & MOD_MINUS_1;
+            time >>= 1;
+        }
+        return res;
     }
 
     /**
@@ -252,6 +343,48 @@ public class CharSequenceUtils {
      * Green implementation of regionMatches.
      *
      * @param cs the {@code CharSequence} to be processed
+     * @param thisStart the index to start on the {@code cs} CharSequence
+     * @param substring the {@code CharSequence} to be looked for
+     * @param start the index to start on the {@code substring} CharSequence
+     * @param length character length of the region
+     * @return whether the region matched
+     */
+    static boolean regionMatches(final CharSequence cs, final int thisStart,
+                                 final CharSequence substring, final int start, final int length)    {
+        if (cs instanceof String && substring instanceof String) {
+            return ((String) cs).regionMatches(thisStart, (String) substring, start, length);
+        }
+        int index1 = thisStart;
+        int index2 = start;
+        int tmpLen = length;
+
+        // Extract these first so we detect NPEs the same as the java.lang.String version
+        final int srcLen = cs.length() - thisStart;
+        final int otherLen = substring.length() - start;
+
+        // Check for invalid parameters
+        if (thisStart < 0 || start < 0 || length < 0) {
+            return false;
+        }
+
+        // Check that the regions are long enough
+        if (srcLen < length || otherLen < length) {
+            return false;
+        }
+
+        while (tmpLen-- > 0) {
+            if (cs.charAt(index1++) != substring.charAt(index2++)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Green implementation of regionMatches.
+     *
+     * @param cs the {@code CharSequence} to be processed
      * @param ignoreCase whether or not to be case insensitive
      * @param thisStart the index to start on the {@code cs} CharSequence
      * @param substring the {@code CharSequence} to be looked for
@@ -261,6 +394,9 @@ public class CharSequenceUtils {
      */
     static boolean regionMatches(final CharSequence cs, final boolean ignoreCase, final int thisStart,
             final CharSequence substring, final int start, final int length)    {
+        if (!ignoreCase) {
+            return regionMatches(cs, thisStart, substring, start, length);
+        }
         if (cs instanceof String && substring instanceof String) {
             return ((String) cs).regionMatches(ignoreCase, thisStart, (String) substring, start, length);
         }
@@ -288,10 +424,6 @@ public class CharSequenceUtils {
 
             if (c1 == c2) {
                 continue;
-            }
-
-            if (!ignoreCase) {
-                return false;
             }
 
             // The real same check as in String.regionMatches():
