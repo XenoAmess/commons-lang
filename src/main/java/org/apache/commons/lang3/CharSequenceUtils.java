@@ -218,6 +218,8 @@ public class CharSequenceUtils {
 
     //lastIndexOf
 
+    private static final int HASH_LIMIT = 16;
+
     private static final int MOD = (1 << 20);
 
     private static final int MOD_MINUS_1 = MOD - 1;
@@ -251,7 +253,7 @@ public class CharSequenceUtils {
             return -1;
         }
 
-        if (len2 <= 16) {
+        if (len2 <= HASH_LIMIT) {
 
             if (cs instanceof String) {
                 return ((String) cs).lastIndexOf(searchChar.toString(), start);
@@ -265,20 +267,18 @@ public class CharSequenceUtils {
 
         } else {
 
-            int seg = 47;
-
             long hash2 = 0;
             for (int i = 0; i < len2; i++) {
-                hash2 *= seg;
+                hash2 *= RADIX;
                 hash2 += searchChar.charAt(i);
                 hash2 &= MOD_MINUS_1;
             }
 
-            long ti = power(seg, len2 - 1);
+            long ti = power(RADIX, len2 - 1);
 
             long hash1 = 0;
             for (int i = start - len2; i < start; i++) {
-                hash1 *= seg;
+                hash1 *= RADIX;
                 hash1 += cs.charAt(i);
                 hash1 &= MOD_MINUS_1;
             }
